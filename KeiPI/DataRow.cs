@@ -1,27 +1,25 @@
 namespace KeiPI
 {
-    public class KeiPIRow
+    public class DataRow
     {
         public int No { get; set; }
         public string Title { get; set; }
         public string Link { get; set; }
-        public string Date { get; set; }
-        public string Content { get; set; }
+        public DateOnly Date { get; set; }
         public string Writer { get; set; }
 
-        public KeiPIRow(int no, string title, string link, string date, string content, string writer)
+        public DataRow(int no, string title, string link, DateOnly date, string writer)
         {
             No = no;
             Title = title;
             Link = link;
             Date = date;
-            Content = content;
             Writer = writer;
         }
 
         public override string ToString()
         {
-            return $"No: {No}\nTitle: {Title}\nLink: {Link}\nDate: {Date}\nContent: {Content}\nWriter: {Writer}\n\n";
+            return $"No: {No}\nTitle: {Title}\nLink: {Link}\nDate: {Date}\nWriter: {Writer}\n\n";
         }
     }
 }

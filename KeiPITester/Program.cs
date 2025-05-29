@@ -4,10 +4,11 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        KeiPIWrapper w2 = new KeiPIWrapper(KeiPIType.GraduateSchool);
-        for (int i = 1; i <= 5; i++)
+        for (int i = 0; i < Enum.GetValues(typeof(ApiType)).Length; i++)
         {
-            Console.WriteLine($"Page {i}:\n\n\n {string.Join("", w2.ToRows(i).Select(x=>x.ToString()))}");
+            Api api = new Api((ApiType)i);
+        
+            Console.WriteLine($"[{api.Name}] {api.ToRows(1)[0]}");
         }
     }
 }

@@ -1,6 +1,6 @@
 ﻿namespace KeiPI
 {
-    public class KeiPI
+    public partial class Api
     {
         public static string Version => "0.1.0";
 
