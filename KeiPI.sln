@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.35913.81
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KeiPI", "KeiPI\KeiPI.csproj", "{694B36AC-0898-21EB-3897-A38B101224F1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KeiPITester", "KeiPITester\KeiPITester.csproj", "{1905B562-B7DE-4CBD-B722-7DFFAED5FE09}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{694B36AC-0898-21EB-3897-A38B101224F1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{694B36AC-0898-21EB-3897-A38B101224F1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{694B36AC-0898-21EB-3897-A38B101224F1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{694B36AC-0898-21EB-3897-A38B101224F1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1905B562-B7DE-4CBD-B722-7DFFAED5FE09}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1905B562-B7DE-4CBD-B722-7DFFAED5FE09}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1905B562-B7DE-4CBD-B722-7DFFAED5FE09}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1905B562-B7DE-4CBD-B722-7DFFAED5FE09}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {8A27D5DD-5F87-4765-9F38-0A649D411B4C}
+	EndGlobalSection
+EndGlobal
