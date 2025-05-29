@@ -6,18 +6,18 @@ namespace KeiPI
 {
     public partial class KeiPIWrapper
     {
-        public KeiPIType Type { get; set; }
+        public KeiPIType KeiPIType { get; set; }
 
         public KeiPIWrapper(KeiPIType type)
         {
-            Type = type;
+            KeiPIType = type;
         }
 
         public string Name
         {
             get
             {
-                switch (Type)
+                switch (KeiPIType)
                 {
                     case KeiPIType.NoticeGeneral:
                         return "전체 공지사항 - 일반";
@@ -26,37 +26,51 @@ namespace KeiPI
                     case KeiPIType.GraduateSchool:
                         return "대학원 공지사항";
                     default:
-                        throw new ArgumentOutOfRangeException(nameof(Type), Type, "Unsupported KeiPI type");
+                        throw new ArgumentOutOfRangeException(nameof(KeiPIType), KeiPIType, "Unsupported KeiPI type");
                 }
             }
         }
 
         public List<KeiPIRow> ToRows(int page = 1)
         {
-            switch (Type)
+            switch (KeiPIType)
             {
                 case KeiPIType.DeptComputer:
                     return ParseDeptComputer(page);
                 case KeiPIType.GraduateSchool:
                     return ParseRss(page, ExtractTotalCount()??0);
                 default:
-                    throw new NotSupportedException($"KeiPI type {Type} is not supported for ToRows method.");
+                    throw new NotSupportedException($"KeiPI type {KeiPIType} is not supported for ToRows method.");
             }
 
         }
 
-        public Uri GetUri(int page = 1)
+        private Uri GetUri(int page = 1)
         {
-            switch (Type)
+            switch (KeiPIType)
             {
                 case KeiPIType.NoticeGeneral:
-                    return new Uri("https://www.kmu.ac.kr/uni/main/page.jsp?mnu_uid=143&pageNo=" + page);
+                    return new Uri(GetUriPrefix() + "/uni/main/page.jsp?mnu_uid=143&pageNo=" + page);
                 case KeiPIType.DeptComputer:
-                    return new Uri("https://computer.kmu.ac.kr/bbs/computer/265/artclList.do?page=" + page);
+                    return new Uri(GetUriPrefix() + "/bbs/computer/265/artclList.do?page=" + page);
                 case KeiPIType.GraduateSchool:
-                    return new Uri("https://gs.kmu.ac.kr/bbs/gs/654/rssList.do?page=" + page);
+                    return new Uri(GetUriPrefix() + "/bbs/gs/654/rssList.do?page=" + page);
                 default:
-                    throw new ArgumentOutOfRangeException(nameof(Type), Type, "Unsupported KeiPI type");
+                    throw new ArgumentOutOfRangeException(nameof(KeiPIType), KeiPIType, "Unsupported KeiPI type");
+            }
+        }
+        private string GetUriPrefix()
+        {
+            switch (KeiPIType)
+            {
+                case KeiPIType.NoticeGeneral:
+                    return "https://www.kmu.ac.kr";
+                case KeiPIType.DeptComputer:
+                    return "https://computer.kmu.ac.kr";
+                case KeiPIType.GraduateSchool:
+                    return "https://gs.kmu.ac.kr";
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(KeiPIType), KeiPIType, "Unsupported KeiPI type");
             }
         }
 
@@ -130,7 +144,7 @@ namespace KeiPI
 
                 if (!link.StartsWith("http"))
                 {
-                    link = "https://gs.kmu.ac.kr" + link;
+                    link = GetUriPrefix() + link;
                 }
 
                 rows.Add(new KeiPIRow(no, title, link, date, content, writer));
@@ -140,11 +154,11 @@ namespace KeiPI
         }
         public int? ExtractTotalCount()
         {
-            switch (Type) {
+            switch (KeiPIType) {
                 case KeiPIType.GraduateSchool:
                     return ExtractTotalCountWithGraduateSchool();
                 default:
-                    Debug.WriteLine($"[ERROR] Unsupported KeiPI type for total count extraction: {Type}");
+                    Debug.WriteLine($"[ERROR] Unsupported KeiPI type for total count extraction: {KeiPIType}");
                     return null;
             }
             
@@ -157,7 +171,7 @@ namespace KeiPI
                 var client = new HttpClient();
                 var html = client.GetStringAsync(url).Result;
 
-                var doc = new HtmlAgilityPack.HtmlDocument();
+                var doc = new HtmlDocument();
                 doc.LoadHtml(html);
 
                 var strongNode = doc.DocumentNode
