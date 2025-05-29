@@ -4,15 +4,28 @@ using System.Xml;
 
 namespace KeiPI
 {
+    /// <summary>
+    /// Represents an API for fetching and parsing various types of notices from the Keimyung University website.
+    /// </summary>
     public partial class Api
     {
+        /// <summary>
+        /// The type of API to be used for fetching notices.
+        /// </summary>
         public ApiType ApiType { get; set; }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Api"/> class with the specified API type.
+        /// </summary>
+        /// <param name="type"></param>
         public Api(ApiType type)
         {
             ApiType = type;
         }
 
+        /// <summary>
+        /// Gets the name of the API type, which is used for display purposes.
+        /// </summary>
         public string Name
         {
             get
@@ -45,13 +58,19 @@ namespace KeiPI
             }
         }
 
+        /// <summary>
+        /// Fetches and parses the notices from the specified API type, returning a list of DataRow objects.
+        /// </summary>
+        /// <param name="page"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public List<DataRow> ToRowsWithPage(int page = 1)
         {
             switch (ApiType)
             {
                 case ApiType.DeptComputer:
                 case ApiType.Teach:
-                    return ParseDeptComputer(page);
+                    return ParseNoRss(page);
                 case ApiType.GraduateSchool:
                     return ParseRss(page, ExtractTotalCount() ?? 0);
                 case ApiType.GeneralNotice:
@@ -62,10 +81,15 @@ namespace KeiPI
                 case ApiType.GumeNotice:
                     return ParseNotice(page);
                 default:
-                    throw new NotSupportedException($"KeiPI type {ApiType} is not supported for ToRows method.");
+                    throw new ArgumentOutOfRangeException(nameof(ApiType), ApiType, "Unsupported KeiPI type");
             }
 
         }
+        /// <summary>
+        /// Fetches and parses the notices from the specified API type, returning a list of DataRow objects with a specified count.
+        /// </summary>
+        /// <param name="count"></param>
+        /// <returns></returns>
         public List<DataRow> ToRowsWithCount(int count)
         {
             List<DataRow> result = new List<DataRow>();
@@ -92,6 +116,12 @@ namespace KeiPI
             return result;
         }
 
+        /// <summary>
+        /// Constructs the URI for fetching notices based on the API type and page number.
+        /// </summary>
+        /// <param name="page"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         private Uri GetUri(int page = 1)
         {
             switch (ApiType)
@@ -118,6 +148,11 @@ namespace KeiPI
                     throw new ArgumentOutOfRangeException(nameof(ApiType), ApiType, "Unsupported KeiPI type");
             }
         }
+        /// <summary>
+        /// Gets the base URI prefix for the specified API type, which is used to construct full URIs for fetching notices.
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         private string GetUriPrefix()
         {
             switch (ApiType)
@@ -140,42 +175,11 @@ namespace KeiPI
             }
         }
 
-        private List<DataRow> ParseDeptComputer(int page = 1)
-        {
-            string html = GetUri(page).Curl();
-            List<DataRow> rows = new List<DataRow>();
-
-            var doc = new HtmlDocument();
-            doc.LoadHtml(html);
-
-            var nodes = doc.DocumentNode.SelectNodes("//table[contains(@class, 'board-table')]//tbody/tr");
-
-            if (nodes == null) return rows;
-
-            foreach (var tr in nodes)
-            {
-                try
-                {
-                    var tds = tr.SelectNodes("td");
-                    if (tds == null || tds.Count < 5) continue;
-
-                    int no = int.Parse(tds[0].InnerText.Trim());
-                    string? title = HtmlEntity.DeEntitize(tds[1].InnerText.Trim());
-                    string link = GetUriPrefix() + tds[1].SelectSingleNode(".//a")?.GetAttributeValue("href", "") ?? "";
-                    string? writer = HtmlEntity.DeEntitize(tds[2].InnerText.Trim());
-                    string date = tds[3].InnerText.Trim();
-
-                    rows.Add(new DataRow(no, title ?? "", link, DateOnly.Parse(date), writer ?? ""));
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine("Parsing Error: " + ex.Message);
-                    continue;
-                }
-            }
-
-            return rows;
-        }
+        /// <summary>
+        /// Parses the notices from the HTML content of the specified page, returning a list of DataRow objects.
+        /// </summary>
+        /// <param name="page"></param>
+        /// <returns></returns>
         private List<DataRow> ParseNotice(int page = 1)
         {
             string html = GetUri(page).Curl();
@@ -223,6 +227,53 @@ namespace KeiPI
 
             return rows;
         }
+        /// <summary>
+        /// Parses the notices from the HTML content of the specified page when RSS is not available, returning a list of DataRow objects.
+        /// </summary>
+        /// <param name="page"></param>
+        /// <returns></returns>
+        private List<DataRow> ParseNoRss(int page = 1)
+        {
+            string html = GetUri(page).Curl();
+            List<DataRow> rows = new List<DataRow>();
+
+            var doc = new HtmlDocument();
+            doc.LoadHtml(html);
+
+            var nodes = doc.DocumentNode.SelectNodes("//table[contains(@class, 'board-table')]//tbody/tr");
+
+            if (nodes == null) return rows;
+
+            foreach (var tr in nodes)
+            {
+                try
+                {
+                    var tds = tr.SelectNodes("td");
+                    if (tds == null || tds.Count < 5) continue;
+
+                    int no = int.Parse(tds[0].InnerText.Trim());
+                    string? title = HtmlEntity.DeEntitize(tds[1].InnerText.Trim());
+                    string link = GetUriPrefix() + tds[1].SelectSingleNode(".//a")?.GetAttributeValue("href", "") ?? "";
+                    string? writer = HtmlEntity.DeEntitize(tds[2].InnerText.Trim());
+                    string date = tds[3].InnerText.Trim();
+
+                    rows.Add(new DataRow(no, title ?? "", link, DateOnly.Parse(date), writer ?? ""));
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine("Parsing Error: " + ex.Message);
+                    continue;
+                }
+            }
+
+            return rows;
+        }
+        /// <summary>
+        /// Parses the RSS feed for the Graduate School notices, returning a list of DataRow objects.
+        /// </summary>
+        /// <param name="page"></param>
+        /// <param name="totalArticleCount"></param>
+        /// <returns></returns>
         private List<DataRow> ParseRss(int page, int totalArticleCount)
         {
             string url = GetUri(page).ToString();
@@ -273,6 +324,10 @@ namespace KeiPI
             return rows;
         }
 
+        /// <summary>
+        /// Extracts the total count of notices from the specified API type, if applicable.
+        /// </summary>
+        /// <returns></returns>
         private int? ExtractTotalCount()
         {
             switch (ApiType)
@@ -280,11 +335,13 @@ namespace KeiPI
                 case ApiType.GraduateSchool:
                     return ExtractTotalCountWithGraduateSchool();
                 default:
-                    Debug.WriteLine($"Unsupported KeiPI type for total count extraction: {ApiType}");
                     return null;
             }
-
         }
+        /// <summary>
+        /// Extracts the total count of notices specifically for the Graduate School from the HTML content.
+        /// </summary>
+        /// <returns></returns>
         private int? ExtractTotalCountWithGraduateSchool()
         {
             try
@@ -310,7 +367,6 @@ namespace KeiPI
             }
 
             return null;
-
         }
     }
 }
