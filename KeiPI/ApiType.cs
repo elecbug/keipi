@@ -10,5 +10,6 @@ namespace KeiPI
         MozipNotice,
         ChuiupNotice,
         GumeNotice,
+        Teach,
     }
 }

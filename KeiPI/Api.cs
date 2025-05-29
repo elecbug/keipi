@@ -1,6 +1,5 @@
 using HtmlAgilityPack;
 using System.Diagnostics;
-using System.Globalization;
 using System.Xml;
 
 namespace KeiPI
@@ -21,20 +20,23 @@ namespace KeiPI
                 switch (ApiType)
                 {
                     case ApiType.GeneralNotice:
-                        return "전체 공지사항 - 일반";
+                        return "공지사항 - 일반";
                     case ApiType.HaksaNotice:
-                        return "전체 공지사항 - 학사";
+                        return "공지사항 - 학사";
                     case ApiType.JanghakNotice:
-                        return "전체 공지사항 - 장학";
+                        return "공지사항 - 장학";
                     case ApiType.MozipNotice:
-                        return "전체 공지사항 - 모집";
+                        return "공지사항 - 모집";
                     case ApiType.ChuiupNotice:
-                        return "전체 공지사항 - 취업";
+                        return "공지사항 - 취업";
                     case ApiType.GumeNotice:
-                        return "전체 공지사항 - 구매";
+                        return "공지사항 - 구매";
 
                     case ApiType.DeptComputer:
                         return "컴퓨터공학과 공지사항";
+                    case ApiType.Teach:
+                        return "교무교직팀 공지사항";
+
                     case ApiType.GraduateSchool:
                         return "대학원 공지사항";
                     default:
@@ -43,11 +45,12 @@ namespace KeiPI
             }
         }
 
-        public List<DataRow> ToRows(int page = 1)
+        public List<DataRow> ToRowsWithPage(int page = 1)
         {
             switch (ApiType)
             {
                 case ApiType.DeptComputer:
+                case ApiType.Teach:
                     return ParseDeptComputer(page);
                 case ApiType.GraduateSchool:
                     return ParseRss(page, ExtractTotalCount() ?? 0);
@@ -62,6 +65,31 @@ namespace KeiPI
                     throw new NotSupportedException($"KeiPI type {ApiType} is not supported for ToRows method.");
             }
 
+        }
+        public List<DataRow> ToRowsWithCount(int count)
+        {
+            List<DataRow> result = new List<DataRow>();
+            int page = 1;
+
+            while (result.Count < count)
+            {
+                var pageRows = ToRowsWithPage(page);
+                if (pageRows == null || pageRows.Count == 0)
+                {
+                    break;
+                }
+
+                foreach (var row in pageRows)
+                {
+                    result.Add(row);
+                    if (result.Count == count)
+                        break;
+                }
+
+                page++;
+            }
+
+            return result;
         }
 
         private Uri GetUri(int page = 1)
@@ -84,6 +112,8 @@ namespace KeiPI
                     return new Uri(GetUriPrefix() + "/bbs/computer/265/artclList.do?page=" + page);
                 case ApiType.GraduateSchool:
                     return new Uri(GetUriPrefix() + "/bbs/gs/654/rssList.do?page=" + page);
+                case ApiType.Teach:
+                    return new Uri(GetUriPrefix() + "/bbs/teach/433/artclList.do?page=" + page);
                 default:
                     throw new ArgumentOutOfRangeException(nameof(ApiType), ApiType, "Unsupported KeiPI type");
             }
@@ -103,6 +133,8 @@ namespace KeiPI
                     return "https://computer.kmu.ac.kr";
                 case ApiType.GraduateSchool:
                     return "https://gs.kmu.ac.kr";
+                case ApiType.Teach:
+                    return "https://teach.kmu.ac.kr";
                 default:
                     throw new ArgumentOutOfRangeException(nameof(ApiType), ApiType, "Unsupported KeiPI type");
             }
@@ -165,7 +197,10 @@ namespace KeiPI
 
                     string noText = tds[0].InnerText.Trim();
                     if (!int.TryParse(noText, out int no))
-                        continue;
+                    {
+                        if (page == 1) no = -1;
+                        else continue;
+                    }
 
                     string? title = HtmlEntity.DeEntitize(tds[1].InnerText.Trim());
                     string link = HtmlEntity.DeEntitize(tds[1].SelectSingleNode(".//a")?.GetAttributeValue("href", "") ?? "") ?? "";
@@ -174,7 +209,7 @@ namespace KeiPI
 
                     if (title != null && title.EndsWith("\u00A0"))
                     {
-                        title = title.Substring(0, title.Length - 1).TrimEnd();
+                        title = title.Replace("\u00A0", " ").TrimEnd();
                     }
 
                     rows.Add(new DataRow(no, title ?? "", link, DateOnly.Parse(date), writer ?? ""));
@@ -245,7 +280,7 @@ namespace KeiPI
                 case ApiType.GraduateSchool:
                     return ExtractTotalCountWithGraduateSchool();
                 default:
-                    Debug.WriteLine($"[ERROR] Unsupported KeiPI type for total count extraction: {ApiType}");
+                    Debug.WriteLine($"Unsupported KeiPI type for total count extraction: {ApiType}");
                     return null;
             }
 
@@ -254,7 +289,7 @@ namespace KeiPI
         {
             try
             {
-                string url = "https://gs.kmu.ac.kr/bbs/gs/654/artclList.do";
+                string url = GetUri() + "/bbs/gs/654/artclList.do";
                 var client = new HttpClient();
                 var html = client.GetStringAsync(url).Result;
 
@@ -271,12 +306,11 @@ namespace KeiPI
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[ERROR] Failed to extract total count: {ex.Message}");
+                Debug.WriteLine($"Failed to extract total count: {ex.Message}");
             }
 
             return null;
 
         }
-
     }
 }

@@ -19,7 +19,7 @@ namespace KeiPI
 
         public override string ToString()
         {
-            return $"No: {No}\nTitle: {Title}\nLink: {Link}\nDate: {Date}\nWriter: {Writer}\n\n";
+            return $"No: {(No == -1 ? "[°øÁö]" : $"{No}")}\nTitle: {Title}\nLink: {Link}\nDate: {Date}\nWriter: {Writer}\n\n";
         }
     }
 }
