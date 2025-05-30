@@ -51,5 +51,15 @@ namespace KeiPI
         {
             return $"No: {(No == -1 ? "[°øÁö]" : $"{No}")}\nTitle: {Title}\nLink: {Link}\nDate: {Date}\nWriter: {Writer}\n\n";
         }
+
+        public bool Equals(DataRow obj)
+        {
+            return obj != null &&
+                   No == obj.No &&
+                   Title == obj.Title &&
+                   Link == obj.Link &&
+                   Date.Equals(obj.Date) &&
+                   Writer == obj.Writer;
+        }
     }
 }

@@ -11,11 +11,28 @@ public class Program
         //    Console.WriteLine($"[{api.Name}]\n {api.ToRowsWithCount(25)[24]}");
         //}
 
-        Api api = new Api(ApiType.Teach);
-
-        for (int i = 25; i < 35; i++)
+        Console.WriteLine("No cache test");
+        for (int a = 0; a < Enum.GetValues(typeof(ApiType)).Length; a++)
         {
-            Console.WriteLine($"[{api.Name}]\n{api.ToRowsWithCount(i+1)[i]}");
+            Api api = new Api((ApiType)a);
+
+            for (int i = 0; i < 5; i++)
+            {
+                //Console.WriteLine($"[{api.Name}]\n{api.GetRow(i * 10 + 1)}");
+                api.GetRow(i * 10 + 1);
+            }
+        }
+
+        Console.WriteLine("Cache test");
+        for (int a = 0; a < Enum.GetValues(typeof(ApiType)).Length; a++)
+        {
+            Api api = new Api((ApiType)a);
+
+            for (int i = 0; i < 5; i++)
+            {
+                //Console.WriteLine($"[{api.Name}]\n{api.GetRow(i * 10 + 1)}");
+                api.GetRow(i * 10 + 1);
+            }
         }
     }
 }

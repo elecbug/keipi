@@ -9,19 +9,18 @@ namespace KeiPI
     /// </summary>
     public partial class Api
     {
-        /// <summary>
-        /// The type of API to be used for fetching notices.
-        /// </summary>
-        public ApiType ApiType { get; set; }
+        private const string UNSUPPORTED_API_TYPE_MESSAGE = $"Unsupported API type";
+        private const string GREATER_THAN_ZERO_MESSAGE = "The value must be greater than 0";
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="Api"/> class with the specified API type.
+        /// Cache for storing pages of notices to avoid redundant network requests.
         /// </summary>
-        /// <param name="type"></param>
-        public Api(ApiType type)
-        {
-            ApiType = type;
-        }
+        private static Dictionary<(ApiType, int), (List<DataRow>, DateTime)> PageCache { get; set; } 
+            = new Dictionary<(ApiType, int), (List<DataRow>, DateTime)>();
+        /// <summary>
+        /// The time duration for which the page cache is valid before it needs to be refreshed.
+        /// </summary>
+        public static TimeSpan PageCachingTime { get; set; } = TimeSpan.FromMinutes(5);
 
         /// <summary>
         /// Gets the name of the API type, which is used for display purposes.
@@ -53,9 +52,22 @@ namespace KeiPI
                     case ApiType.GraduateSchool:
                         return "대학원 공지사항";
                     default:
-                        throw new ArgumentOutOfRangeException(nameof(ApiType), ApiType, "Unsupported KeiPI type");
+                        throw new ArgumentOutOfRangeException(nameof(ApiType), ApiType, UNSUPPORTED_API_TYPE_MESSAGE);
                 }
             }
+        }
+        /// <summary>
+        /// The type of API to be used for fetching notices.
+        /// </summary>
+        public ApiType ApiType { get; set; }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Api"/> class with the specified API type.
+        /// </summary>
+        /// <param name="type"></param>
+        public Api(ApiType type)
+        {
+            ApiType = type;
         }
 
         /// <summary>
@@ -64,40 +76,70 @@ namespace KeiPI
         /// <param name="page"></param>
         /// <returns></returns>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
-        public List<DataRow> ToRowsWithPage(int page = 1)
+        public List<DataRow> GetRowsWithPage(int page = 1)
         {
+            if (page <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(page), page, GREATER_THAN_ZERO_MESSAGE);
+            }
+
+            if (PageCache.TryGetValue((ApiType, page), out var cachedRows))
+            {
+                TimeSpan cacheDuration = DateTime.Now - cachedRows.Item2;
+
+                if (cacheDuration < PageCachingTime)
+                {
+                    return cachedRows.Item1;
+                }
+                else if (CheckSync(cachedRows.Item1))
+                {
+                    PageCache[(ApiType, page)] = (cachedRows.Item1, DateTime.Now);
+                    return cachedRows.Item1;
+                }
+            }
+
+            List<DataRow> rows = new List<DataRow>();
+
             switch (ApiType)
             {
                 case ApiType.DeptComputer:
                 case ApiType.Teach:
-                    return ParseNoRss(page);
+                    rows = ParseNoRss(page); break;
                 case ApiType.GraduateSchool:
-                    return ParseRss(page, ExtractTotalCount() ?? 0);
+                    rows = ParseRss(page, ExtractTotalCount() ?? 0); break;
                 case ApiType.GeneralNotice:
                 case ApiType.HaksaNotice:
                 case ApiType.JanghakNotice:
                 case ApiType.MozipNotice:
                 case ApiType.ChuiupNotice:
                 case ApiType.GumeNotice:
-                    return ParseNotice(page);
+                    rows = ParseNotice(page); break;
                 default:
-                    throw new ArgumentOutOfRangeException(nameof(ApiType), ApiType, "Unsupported KeiPI type");
+                    throw new ArgumentOutOfRangeException(nameof(ApiType), ApiType, UNSUPPORTED_API_TYPE_MESSAGE);
             }
 
+            PageCache[(ApiType, page)] = (rows, DateTime.Now);
+
+            return rows;
         }
         /// <summary>
         /// Fetches and parses the notices from the specified API type, returning a list of DataRow objects with a specified count.
         /// </summary>
         /// <param name="count"></param>
         /// <returns></returns>
-        public List<DataRow> ToRowsWithCount(int count)
+        public List<DataRow> GetRowsWithCount(int count)
         {
+            if (count <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count), count, GREATER_THAN_ZERO_MESSAGE);
+            }
+
             List<DataRow> result = new List<DataRow>();
             int page = 1;
 
             while (result.Count < count)
             {
-                var pageRows = ToRowsWithPage(page);
+                var pageRows = GetRowsWithPage(page);
                 if (pageRows == null || pageRows.Count == 0)
                 {
                     break;
@@ -114,6 +156,23 @@ namespace KeiPI
             }
 
             return result;
+        }
+        /// <summary>
+        /// Gets a specific row by its number from the notices, ensuring that the number is greater than zero.
+        /// </summary>
+        /// <param name="no"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public DataRow GetRow(int no)
+        {
+            if (no <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(no), no, GREATER_THAN_ZERO_MESSAGE);
+            }
+
+            List<DataRow> rows = GetRowsWithCount(no);
+
+            return rows.Last();
         }
 
         /// <summary>
@@ -145,7 +204,7 @@ namespace KeiPI
                 case ApiType.Teach:
                     return new Uri(GetUriPrefix() + "/bbs/teach/433/artclList.do?page=" + page);
                 default:
-                    throw new ArgumentOutOfRangeException(nameof(ApiType), ApiType, "Unsupported KeiPI type");
+                    throw new ArgumentOutOfRangeException(nameof(ApiType), ApiType, UNSUPPORTED_API_TYPE_MESSAGE);
             }
         }
         /// <summary>
@@ -171,7 +230,7 @@ namespace KeiPI
                 case ApiType.Teach:
                     return "https://teach.kmu.ac.kr";
                 default:
-                    throw new ArgumentOutOfRangeException(nameof(ApiType), ApiType, "Unsupported KeiPI type");
+                    throw new ArgumentOutOfRangeException(nameof(ApiType), ApiType, UNSUPPORTED_API_TYPE_MESSAGE);
             }
         }
 
@@ -328,6 +387,7 @@ namespace KeiPI
         /// Extracts the total count of notices from the specified API type, if applicable.
         /// </summary>
         /// <returns></returns>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         private int? ExtractTotalCount()
         {
             switch (ApiType)
@@ -335,7 +395,7 @@ namespace KeiPI
                 case ApiType.GraduateSchool:
                     return ExtractTotalCountWithGraduateSchool();
                 default:
-                    return null;
+                    throw new ArgumentOutOfRangeException(nameof(ApiType), ApiType, UNSUPPORTED_API_TYPE_MESSAGE);
             }
         }
         /// <summary>
@@ -346,7 +406,7 @@ namespace KeiPI
         {
             try
             {
-                string url = GetUri() + "/bbs/gs/654/artclList.do";
+                string url = GetUriPrefix() + "/bbs/gs/654/artclList.do";
                 var client = new HttpClient();
                 var html = client.GetStringAsync(url).Result;
 
@@ -367,6 +427,37 @@ namespace KeiPI
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Checks if the first item in the list of notices matches the first item in the cached page, ensuring synchronization.
+        /// </summary>
+        /// <param name="items"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        private bool CheckSync(List<DataRow> items)
+        {
+            List<DataRow> rows = new List<DataRow>();
+
+            switch (ApiType)
+            {
+                case ApiType.DeptComputer:
+                case ApiType.Teach:
+                    rows = ParseNoRss(1); break;
+                case ApiType.GraduateSchool:
+                    rows = ParseRss(1, ExtractTotalCount() ?? 0); break;
+                case ApiType.GeneralNotice:
+                case ApiType.HaksaNotice:
+                case ApiType.JanghakNotice:
+                case ApiType.MozipNotice:
+                case ApiType.ChuiupNotice:
+                case ApiType.GumeNotice:
+                    rows = ParseNotice(1); break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(ApiType), ApiType, UNSUPPORTED_API_TYPE_MESSAGE);
+            }
+
+            return rows.First().Equals(items.First()) && rows.Last().Equals(items.Last());
         }
     }
 }
